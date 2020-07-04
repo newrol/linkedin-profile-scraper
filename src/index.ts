@@ -88,6 +88,18 @@ export interface VolunteerExperience {
   description: string | null;
 }
 
+export interface Languajes{
+  languaje: string | null;
+}
+
+export interface Projects{
+  title: string | null;
+  startDate: string | null;
+  endDate: string | null;
+  description: string | null;
+  projectLink: string | null;
+}
+
 export interface Skill {
   skillName: string | null;
   endorsementCount: number | null;
@@ -537,10 +549,14 @@ export class LinkedInProfileScraper {
         '#experience-section .pv-profile-section__see-more-inline.link', // Experience
         '.pv-profile-section.education-section button.pv-profile-section__see-more-inline', // Education
         '.pv-skill-categories-section [data-control-name="skill_details"]', // Skills
+        '.projects [aria-controls="projects-expandable-content"]',
       ];
 
-      const seeMoreButtonsSelectors = ['.pv-entity__description .lt-line-clamp__line.lt-line-clamp__line--last .lt-line-clamp__more[href="#"]', '.lt-line-clamp__more[href="#"]:not(.lt-line-clamp__ellipsis--dummy)']
-
+      const seeMoreButtonsSelectors = ['.pv-entity__description .lt-line-clamp__line.lt-line-clamp__line--last .lt-line-clamp__more[href="#"]',
+        '.lt-line-clamp__more[href="#"]:not(.lt-line-clamp__ellipsis--dummy)',
+    
+      ]
+      
       statusLog(logSection, 'Expanding all sections by clicking their "See more" buttons', scraperSessionId)
 
       for (const buttonSelector of expandButtonsSelectors) {
@@ -554,7 +570,6 @@ export class LinkedInProfileScraper {
         }
       }
       
-
       // To give a little room to let data appear. Setting this to 0 might result in "Node is detached from document" errors
       await page.waitFor(100);
 
@@ -830,6 +845,47 @@ export class LinkedInProfileScraper {
 
       statusLog(logSection, `Got skills data: ${JSON.stringify(skills)}`, scraperSessionId)
 
+      statusLog(logSection, `Parsing Accomplishments data...`, scraperSessionId)
+
+      const languajes: Languajes[] = await page.$$eval('#languages-expandable-content > ul > li', nodes => {
+        // Note: the $$eval context is the browser context.
+        // So custom methods you define in this file are not available within this $$eval.
+
+
+        return nodes.map((node) => {
+  
+          const languaje = node        
+          return {
+            languaje: (languaje) ? languaje.textContent?.trim() : null,
+          } as Languajes;
+        }) as Languajes[]
+      });
+
+      const projects: Projects[] = await page.$$eval('#projects-expandable-content > ul > li', nodes => {
+        // Note: the $$eval context is the browser context.
+        // So custom methods you define in this file are not available within this $$eval.
+
+
+        return nodes.map((node) => {
+
+          const title = node.querySelector('.pv-accomplishment-entity__title');
+          const startDate = node.querySelector('.pv-accomplishment-entity__date');
+          const endDate = node.querySelector('.pv-accomplishment-entity__date');
+          const description = node.querySelector('.pv-accomplishment-entity__description');
+          const projectLink = node.querySelector('.pv-accomplishment-entity__external-source')?.getAttribute('href') 
+
+          return {
+            title:  (title) ? title.textContent?.replace('Project name\n','').trim() : null,
+            startDate: (startDate) ? startDate.textContent?.trim() : null,
+            endDate: (endDate) ? endDate.textContent?.trim() : null,
+            description: (description) ? description.textContent?.replace('Project description\n','').trim() : null,
+            projectLink: (projectLink) ? projectLink: null,
+              
+          } as Projects;
+        }) as Projects[]
+      });
+
+
       statusLog(logSection, `Done! Returned profile details for: ${profileUrl}`, scraperSessionId)
 
       if (!this.options.keepAlive) {
@@ -850,7 +906,9 @@ export class LinkedInProfileScraper {
         experiences,
         education,
         volunteerExperiences,
-        skills
+        skills,
+        languajes,
+        projects
       }
     } catch (err) {
       // Kill Puppeteer
