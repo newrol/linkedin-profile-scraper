@@ -16,7 +16,7 @@ interface RawProfile {
   title: string | null;
   location: string | null;
   photo: string | null;
-  description: string | null;
+  description: string[] | null;
   url: string;
 }
 
@@ -25,7 +25,7 @@ export interface Profile {
   title: string | null;
   location: Location | null;
   photo: string | null;
-  description: string | null;
+  description: string[] | null;
   url: string;
 }
 
@@ -610,8 +610,10 @@ export class LinkedInProfileScraper {
         const photo = photoElement?.getAttribute('src') || null
 
         const descriptionElement = document.querySelector('.pv-about__summary-text .lt-line-clamp__raw-line') // Is outside "profileSection"
-        const description = descriptionElement?.textContent || null
+        const descriptionRaw = descriptionElement?.innerHTML || null
 
+        const description = descriptionRaw?.split("<br><br>") || null
+        
         return {
           fullName,
           title,
@@ -629,7 +631,7 @@ export class LinkedInProfileScraper {
         fullName: getCleanText(rawUserProfileData.fullName),
         title: getCleanText(rawUserProfileData.title),
         location: rawUserProfileData.location ? getLocationFromText(rawUserProfileData.location) : null,
-        description: getCleanText(rawUserProfileData.description),
+        description: rawUserProfileData.description,
       }
 
       statusLog(logSection, `Got user profile data: ${JSON.stringify(userProfile)}`, scraperSessionId)
@@ -873,7 +875,7 @@ export class LinkedInProfileScraper {
           const endDate = node.querySelector('.pv-accomplishment-entity__date');
           const description = node.querySelector('.pv-accomplishment-entity__description');
           const projectLink = node.querySelector('.pv-accomplishment-entity__external-source')?.getAttribute('href') 
-
+          
           return {
             title:  (title) ? title.textContent?.replace('Project name\n','').trim() : null,
             startDate: (startDate) ? startDate.textContent?.trim() : null,
